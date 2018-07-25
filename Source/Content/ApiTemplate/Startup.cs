@@ -98,6 +98,7 @@ namespace ApiTemplate
 #endif
                     .AddCustomMvcOptions(this.hostingEnvironment)
                 .Services
+                .AddCustomApiBehavior()
                 .AddProjectCommands()
                 .AddProjectMappers()
                 .AddProjectRepositories()

@@ -12,6 +12,7 @@ namespace ApiTemplate
     using ApiTemplate.OperationFilters;
 #endif
     using ApiTemplate.Options;
+    using ApiTemplate.ViewModelSchemaFilters;
 #if (Swagger)
     using Boxed.AspNetCore.Swagger;
     using Boxed.AspNetCore.Swagger.OperationFilters;
@@ -24,6 +25,8 @@ namespace ApiTemplate
 #if (!ForwardedHeaders && HostFiltering)
     using Microsoft.AspNetCore.HostFiltering;
 #endif
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Mvc;
 #if (Versioning)
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
 #endif
@@ -49,6 +52,25 @@ namespace ApiTemplate
             services.AddCorrelationId();
             return services;
         }
+
+        public static IServiceCollection AddCustomApiBehavior(this IServiceCollection services) =>
+            services.Configure<ApiBehaviorOptions>(
+                options =>
+                {
+                    options.InvalidModelStateResponseFactory = context =>
+                    {
+                        var problemDetails = new ValidationProblemDetails(context.ModelState)
+                        {
+                            Type = "https://asp.net/core",
+                            Title = $"{context.ModelState.ErrorCount} validation errors occurred.",
+                            Status = StatusCodes.Status400BadRequest,
+                            Detail = "Please refer to the errors property for additional details.",
+                            Instance = context.HttpContext.Request.Path
+                        };
+
+                        return new BadRequestObjectResult(problemDetails);
+                    };
+                });
 
         /// <summary>
         /// Configures caching for the application. Registers the <see cref="IDistributedCache"/> and
@@ -205,8 +227,8 @@ namespace ApiTemplate
 
                     // Show an example model for JsonPatchDocument<T>.
                     options.SchemaFilter<JsonPatchDocumentSchemaFilter>();
-                    // Show an example model for ModelStateDictionary.
-                    options.SchemaFilter<ModelStateDictionarySchemaFilter>();
+                    // Show an example model for ValidationProblemDetails.
+                    options.SchemaFilter<ValidationProblemDetailsSchemaFilter>();
 
 #if (Versioning)
                     var provider = services.BuildServiceProvider().GetRequiredService<IApiVersionDescriptionProvider>();

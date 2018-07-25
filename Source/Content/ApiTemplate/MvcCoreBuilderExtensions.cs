@@ -88,6 +88,9 @@ namespace ApiTemplate
                     // See http://restfuljson.org/
                     jsonInputFormatterMediaTypes.Insert(0, ContentType.RestfulJson);
                     jsonOutputFormatterMediaTypes.Insert(0, ContentType.RestfulJson);
+                    // Add Problem JSON media type (application/problem+json) to the JSON output formatters.
+                    // See https://tools.ietf.org/html/rfc7807
+                    jsonOutputFormatterMediaTypes.Add(ContentType.ProblemJson);
 
                     // Remove string and stream output formatters. These are not useful for an API serving JSON or XML.
                     options.OutputFormatters.RemoveType<StreamOutputFormatter>();
