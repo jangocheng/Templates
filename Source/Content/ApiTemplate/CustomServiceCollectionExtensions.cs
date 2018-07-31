@@ -61,7 +61,7 @@ namespace ApiTemplate
                     {
                         var problemDetails = new ValidationProblemDetails(context.ModelState)
                         {
-                            Type = "https://asp.net/core",
+                            Type = "/",
                             Title = $"{context.ModelState.ErrorCount} validation errors occurred.",
                             Status = StatusCodes.Status400BadRequest,
                             Detail = "Please refer to the errors property for additional details.",
