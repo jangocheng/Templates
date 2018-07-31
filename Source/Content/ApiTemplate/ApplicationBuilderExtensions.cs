@@ -5,14 +5,23 @@ namespace ApiTemplate
 #if (Versioning)
     using System.Reflection;
 #endif
+    using System.Text;
+    using System.Threading.Tasks;
     using ApiTemplate.Constants;
     using ApiTemplate.Options;
     using Boxed.AspNetCore;
     using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Diagnostics;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Mvc;
 #if (Versioning)
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
 #endif
+    using Microsoft.AspNetCore.Server.Kestrel.Core;
+    using Microsoft.AspNetCore.WebUtilities;
     using Microsoft.Extensions.DependencyInjection;
+    using Newtonsoft.Json;
 
     public static partial class ApplicationBuilderExtensions
     {
@@ -85,5 +94,64 @@ namespace ApiTemplate
 #endif
                 });
 #endif
+
+        public static IApplicationBuilder UseCustomExceptionHandler(
+            this IApplicationBuilder application,
+            IHostingEnvironment hostingEnvironment) =>
+            application.UseExceptionHandler(app =>
+            {
+                app.Run(context =>
+                {
+                    var errorFeature = context.Features.Get<IExceptionHandlerFeature>();
+                    var exception = errorFeature.Error;
+                    var problemDetails = new ProblemDetails()
+                    {
+                        Type = "/",
+                        Instance = context.Request.Path
+                    };
+
+                    if (exception is BadHttpRequestException badHttpRequestException)
+                    {
+                        problemDetails.Title = "Invalid request.";
+                        problemDetails.Status = (int)typeof(BadHttpRequestException)
+                            .GetProperty("StatusCode", BindingFlags.NonPublic | BindingFlags.Instance)
+                            .GetValue(badHttpRequestException);
+                        problemDetails.Detail = badHttpRequestException.Message;
+                    }
+                    else
+                    {
+                        problemDetails.Title = "An unexpected error occurred.";
+                        problemDetails.Status = StatusCodes.Status500InternalServerError;
+                        if (hostingEnvironment.IsDevelopment())
+                        {
+                            problemDetails.Detail = exception.ToString();
+                        }
+                    }
+
+                    context.Response.StatusCode = problemDetails.Status.Value;
+                    context.Response.WriteJson(problemDetails, ContentType.ProblemJson);
+
+                    return Task.CompletedTask;
+                });
+            });
+
+        private static readonly JsonSerializer Serializer = new JsonSerializer()
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
+        private static void WriteJson<T>(this HttpResponse response, T obj, string contentType = null)
+        {
+            response.ContentType = contentType ?? ContentType.Json;
+            using (var writer = new HttpResponseStreamWriter(response.Body, Encoding.UTF8))
+            {
+                using (var jsonWriter = new JsonTextWriter(writer))
+                {
+                    jsonWriter.CloseOutput = false;
+                    jsonWriter.AutoCompleteOnClose = false;
+                    Serializer.Serialize(jsonWriter, obj);
+                }
+            }
+        }
     }
 }

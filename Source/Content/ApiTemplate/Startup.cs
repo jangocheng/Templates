@@ -138,6 +138,7 @@ namespace ApiTemplate
                     this.hostingEnvironment.IsDevelopment(),
                     x => x.UseDeveloperErrorPages())
                 .UseStaticFilesWithCacheControl()
+                .UseCustomExceptionHandler(this.hostingEnvironment)
 #if (Swagger)
                 .UseMvc()
                 .UseSwagger()
